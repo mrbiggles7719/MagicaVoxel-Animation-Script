@@ -51,3 +51,5 @@ Config Generator/build/Animation-Script/warn-Animation-Script.txt
 Config Generator/build/Animation-Script/xref-Animation-Script.html
 Config Generator/Animation-Script.spec
 .DS_Store
+.vs/ProjectSettings.json
+.vs/slnx.sqlite

@@ -1,4 +1,4 @@
-from time import process_time_ns, thread_time_ns
+import time
 from ctypes import wintypes, windll, create_unicode_buffer
 from typing import Optional
 import pyperclip
@@ -7,9 +7,25 @@ import time
 import json
 import sys
 import os
+import psutil
+import winstats
+
+
+
+class UndetectedGPUException(Exception):
+    """We could not determine GPU utilization  """
+
 
 global atime
 atime = int(0)
+
+# GPU Wait Settings
+# Percent utilization when GPU is considered busy
+gputhresh = 25
+# How often to poll GPU when waiting for it to be idle
+gpusleeptime = 0.5
+
+
 
 def getForegroundWindowTitle() -> Optional[str]:
     hWnd = windll.user32.GetForegroundWindow()
@@ -251,7 +267,8 @@ def mvinput(command,secondPerRender):
         if bool(data['global']['saverenders']):         
             time.sleep(0.2)
             pydi.press('enter')
-    time.sleep(secondPerRender)              
+        waitforgpu()
+                
 
     
 def pause(firsttime):
@@ -271,6 +288,37 @@ def pause(firsttime):
 
             while getForegroundWindowTitle():
                 time.sleep(5)              
+
+
+def waitforgpu():
+    try:
+        utilization = getgpuutil()
+        while(utilization > gputhresh):
+            time.sleep(gpusleeptime)
+            utilization = getgpuutil()
+            print("Waiting for GPU.  Utilization: " + str(utilization))
+
+    except UndetectedGPUException:
+        print("GPU detection failed.  Falling back to sleep.")
+        time.sleep(secondPerRender)  
+
+def getgpuutil():
+    pid = None
+    process = filter(lambda p: p.name() == "MagicaVoxel.exe", psutil.process_iter())
+    for i in process:
+        pid = i.pid
+
+    if(pid != None):
+        pinfo = winstats.get_perf_info()
+        cmd = r'\GPU Engine(pid_{}*engtype_3D)\Utilization Percentage'.format(pid)
+        usage = winstats.get_perf_data(cmd, delay=100)
+        if(usage == None or len(usage) == 0):
+            raise UndetectedGPUException
+        return(usage[0])
+    else:
+        return(100)	
+
+
 
 
 def main():
